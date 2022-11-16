@@ -1,8 +1,8 @@
-import { Request, Response } from 'express';
+import { NextFunction, Request, Response } from 'express';
 import prisma from '../db';
 import { comparePasswords, createJWT, hashPassword } from '../modules/auth';
 
-export const createNewUser = async (req: Request, res: Response) => {
+export const createNewUser = async (req, res, next) => {
   const { username, password } = req.body;
 
   const IsExist = await prisma.user.findUnique({
@@ -13,16 +13,19 @@ export const createNewUser = async (req: Request, res: Response) => {
     res.status(400).json({ message: 'This User already exist. Try another.' });
     return;
   }
-
-  const user = await prisma.user.create({
-    data: {
-      username: username,
-      password: await hashPassword(password),
-    },
-  });
-
-  const token = createJWT(user);
-  res.json({ token });
+  try {
+    const user = await prisma.user.create({
+      data: {
+        username: username,
+        password: await hashPassword(password),
+      },
+    });
+    const token = createJWT(user);
+    res.json({ token });
+  } catch (error) {
+    error.type = 'input';
+    next();
+  }
 };
 
 export const signin = async (req: Request, res: Response) => {
